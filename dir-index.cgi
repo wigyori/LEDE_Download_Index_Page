@@ -205,18 +205,20 @@ sub printh1 {
 }
 
 sub print404 {
-  my $virt = shift;
-  print "Status: 404 Not found\n";
-  print "Content-type: text/html\n\n";
-  print "<!-- This directory index page generated on the fly by dir-index.cgi -->\n";
-  print "<html><head>\n";
-  print $stylecss;
-  printf "<title>Not found: %s</title></head>\n<body>\n", htmlenc($virt);
-  printf "<h1>Not found: %s</h1>\n", htmlenc($virt);
-  print "<hr>";
-  print "<p>The requested resource could not be found on the server.</p>";
-  print "<p>Try returning to the <a href=\"/\">root directory</a> to browse available directories.</p>";
-  print "</body></html>";
+    my $virt = shift;
+    my $html;
+    $html .= "Status: 404 Not found\n";
+    $html .= "Content-type: text/html\n\n";
+    $html .= "<!-- This directory index page generated on the fly by dir-index.cgi -->\n";
+    $html .= "<html><head>\n";
+    $html .= $stylecss;
+    $html .= "<title>Not found: %s</title></head>\n<body>\n", htmlenc($virt);
+    $html .= sprintf "<h1>Not found: %s</h1>\n", htmlenc($virt);
+    $html .= "<hr>";
+    $html .= "<p>The requested resource could not be found on the server.</p>";
+    $html .= "<p>Try returning to the <a href=\"/\">root directory</a> to browse available directories.</p>";
+    $html .= "</body></html>";
+    return $html;
 }
 
 sub printheader {
