@@ -13,6 +13,8 @@ use warnings;
 use Fcntl ':mode';
 use JSON;
 
+my $htmlcachedir = "/var/tmp/cgi-cache-test";
+
 my $stylecss = <<EOT;
   <style type="text/css">
   html, body {
@@ -201,7 +203,7 @@ sub printh1 {
 	$i ? htmlenc($parts[$i]) : '<em>(root)</em>';
   }
 
-  printf "<h1>Index of %s</h1>\n", $s;
+  printf "<h1>Index of test %s</h1>\n", $s;
 }
 
 sub print404 {
@@ -399,6 +401,18 @@ sub printdirectory {
 
 my $phys = $ENV{'DOCUMENT_ROOT'};
 my $virt = '/'.$ENV{'PATH_INFO'};
+
+# add caching function
+my $sanitized_virt = $virt;
+$sanitized_virt =~ s/\//_/g;
+my $htmlcachefile = $htmlcachedir."/".$sanitized_virt.".cache";
+#print "cachefile: ".$htmlcachefile."\n";
+if ( -e $htmlcachefile ) {
+    open(CACHE, "<$htmlcachefile") or die ("Unable to open $htmlcachefile due to $!\n");
+    my $html = <CACHE>;
+    print $html;
+    exit 0;
+}
 
 my @hidden = (                            # hide these files - never consider them
   qr!^/releases/\d\d\.\d\d-SNAPSHOT/?$!,
