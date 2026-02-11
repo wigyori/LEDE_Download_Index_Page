@@ -143,6 +143,7 @@ sub printentry {
   my ($basename) = $entry =~ m!([^/]+)$!; # / strip off path info
   my $size = "-";
   my $checksum = $checksums->{$basename};
+  my $html;
 
   if (!$checksum) {                                              # if not present in hash, use "-"
     $checksum = "-";
@@ -177,15 +178,16 @@ sub printentry {
 #   $date:      in the form "Tue Feb 21 04:03:38 2017"
 
   # Output the html for the row
-  print '  <tr>';
-  printf '<td class="n"><a href="%s">%s</a>%s</td>',
+  $html .= '  <tr>';
+  $html .= sprintf '<td class="n"><a href="%s">%s</a>%s</td>',
     htmlenc($basename),
     htmlenc($imagename),
     $link;
-  printf '<td class="sh">%s</td>', $checksum;
-  printf '<td class="s">%s</td>', $size;
-  printf '<td class="d">%s</td>', $date;
-  print  "</tr>\n";
+  $html .= sprintf '<td class="sh">%s</td>', $checksum;
+  $html .= sprintf '<td class="s">%s</td>', $size;
+  $html .= sprintf '<td class="d">%s</td>', $date;
+  $html .= "</tr>\n";
+  return $html;
 }
 
 sub printh1 {
@@ -203,7 +205,7 @@ sub printh1 {
 	$i ? htmlenc($parts[$i]) : '<em>(root)</em>';
   }
 
-  printf "<h1>Index of test %s</h1>\n", $s;
+  return sprintf "<h1>Index of test %s</h1>\n", $s;
 }
 
 sub print404 {
@@ -224,14 +226,16 @@ sub print404 {
 }
 
 sub printheader {
-  my $virt = shift;
-  print "Content-type:text/html\n\n";
-  print "<!-- This directory index page generated on the fly by dir-index.cgi -->\n";
-  print "<html><head>\n";
-  print $stylecss;
-  printf "<title>Index of %s</title></head>\n<body>\n", htmlenc($virt);
-  printh1($virt);
-  print "<hr>";
+    my $virt = shift;
+    my $html;
+    $html .= "Content-type:text/html\n\n";
+    $html .= "<!-- This directory index page generated on the fly by dir-index.cgi -->\n";
+    $html .= "<html><head>\n";
+    $html .= $stylecss;
+    $html .= sprintf "<title>Index of %s</title></head>\n<body>\n", htmlenc($virt);
+    $html .= printh1($virt);
+    $html .= "<hr>";
+    return $html;
 }
 
 # printtargets - print 'targets' directories
@@ -240,6 +244,7 @@ sub printtargets {
   my $entries = shift;
   my $phys = shift;
   my $virt = shift;
+  my $html;
   my @metafiles = (                         # names of files to be displayed as "meta files" at the top of the page
     qr/packages/,
     qr/config.seed/,
@@ -317,9 +322,9 @@ sub printtargets {
   }
 
   # Begin to print the page
-  printheader($virt);
+  $html .= printheader($virt);
 
-  print <<EOT;
+  $html .= <<EOT;
   <h2>Image Files</h2>
   <p>These are the image files for the <b>$tuple</b> target.
   Check that the $checktype of the file you downloaded matches the $checktype below.<br />
@@ -328,28 +333,29 @@ sub printtargets {
 EOT
   # /
 
-  print "<table>\n";
-  print '  <tr><th class="n">Image for your Device</th><th>'.$checktype.'</th><th class="s">File Size</th><th class="d">Date</th></tr>'."\n";
+  $html .= "<table>\n";
+  $html .= '  <tr><th class="n">Image for your Device</th><th>'.$checktype.'</th><th class="s">File Size</th><th class="d">Date</th></tr>'."\n";
   foreach my $entry (@images) {
-    printentry($entry, $prefix, \%checksums)
+    $html .= printentry($entry, $prefix, \%checksums)
   }
-  print "</table>\n";
+  $html .= "</table>\n";
 
-  print <<EOT;
+  $html .= <<EOT;
   <h2>Supplementary Files</h2>
   <p>These are supplementary resources for the <b>$tuple</b> target.
   They include build tools, the imagebuilder, $checktype, GPG signature file, and other useful files. </p>
 EOT
   # /
 
-  print "<table>\n";
-  print '  <tr><th class="n">Filename</th><th>'.$checktype.'</th><th class="s">File Size</th><th class="d">Date</th></tr>'."\n";
+  $html .= "<table>\n";
+  $html .= '  <tr><th class="n">Filename</th><th>'.$checktype.'</th><th class="s">File Size</th><th class="d">Date</th></tr>'."\n";
   foreach my $entry (@metas) {
-    printentry($entry, "", \%checksums)
+    $html .= printentry($entry, "", \%checksums)
   }
-  print "</table>\n";
+  $html .= "</table>\n";
 
-  print "</body></html>\n";
+  $html .= "</body></html>\n";
+  return $html;
 }
 
 # printdirectory - print any directory in a pleasing format
@@ -358,15 +364,16 @@ sub printdirectory {
   my $entries = shift;
   my $phys = shift;
   my $virt = shift;
+  my $html;
 
-  printheader($virt);
-  print "<table>\n";
-  print '  <tr><th class="n">File Name</th><th class="s">File Size</th><th class="d">Date</th></tr>'."\n";
+  $html .= printheader($virt);
+  $html .= "<table>\n";
+  $html .= '  <tr><th class="n">File Name</th><th class="s">File Size</th><th class="d">Date</th></tr>'."\n";
 
   foreach my $entry (@$entries) {
     my ($basename) = $entry =~ m!([^/]+)$!; # /
 
-    print "  <tr>";
+    $html .= print "  <tr>";
 
     my @s = stat $entry;
     my $link = (-l $entry)
@@ -374,27 +381,27 @@ sub printdirectory {
       : '';
 
     if (S_ISDIR($s[2])) {
-      printf '<td class="n"><a href="%s/">%s</a>/%s</td>',
+      $html .= sprintf '<td class="n"><a href="%s/">%s</a>/%s</td>',
         htmlenc($basename),
         htmlenc($basename),
         $link;
-      printf '<td class="s">-</td>';
-      printf '<td class="d">%s</td>', scalar localtime $s[9];
+      $html .= sprintf '<td class="s">-</td>';
+      $html .= sprintf '<td class="d">%s</td>', scalar localtime $s[9];
     }
     else {
-      printf '<td class="n"><a href="%s">%s</a>%s</td>',
+      $html .= sprintf '<td class="n"><a href="%s">%s</a>%s</td>',
         htmlenc($basename),
         htmlenc($basename),
         $link;
-      printf '<td class="s">%.1f KB</td>', $s[7] / 1024;
-      printf '<td class="d">%s</td>', scalar localtime $s[9];
+      $html .= sprintf '<td class="s">%.1f KB</td>', $s[7] / 1024;
+      $html .= sprintf '<td class="d">%s</td>', scalar localtime $s[9];
     }
 
-    print "</tr>\n";
+    $html .= "</tr>\n";
   }
 
-  print "</table>\n";
-  print "</body></html>\n";
+  $html .= "</table>\n";
+  $html .= "</body></html>\n";
 }
 
 # ====== Main Routine ======
@@ -436,7 +443,7 @@ if (opendir(D, $phys)) {                  # read all the files from the director
   closedir D;
 }
 else {
-  print404($virt);
+  print print404($virt);
   exit 0;
 }
 
@@ -471,8 +478,8 @@ if ($virt =~ m!/targets/$! && $ENV{'QUERY_STRING'} =~ m!^json\b!) {
 elsif ($virt =~ m!/targets/[^/]+/[^/]+/?$! || # special handling for 'targets' - LEDE image file directories
        $virt =~ m!/(backfire|kamikaze)/[^/]+/[^/]+/?$! ||
        $virt =~ m!/(attitude_adjustment|barrier_breaker|chaos_calmer)/[^/]+/[^/]+/[^/]+/?$!) {
-  printtargets(\@entries, $phys, $virt)
+  print printtargets(\@entries, $phys, $virt)
 }
 else {                                        # otherwise use standard directory display format
-  printdirectory(\@entries, $phys, $virt)
+  print printdirectory(\@entries, $phys, $virt)
 }
