@@ -13,7 +13,7 @@ use warnings;
 use Fcntl ':mode';
 use JSON;
 
-my $htmlcachedir = "/var/tmp/cgi-cache-test";
+my $htmlcachedir = "/var/tmp/cgi-cache";
 
 my $stylecss = <<EOT;
   <style type="text/css">
@@ -187,6 +187,7 @@ sub printentry {
   $html .= sprintf '<td class="s">%s</td>', $size;
   $html .= sprintf '<td class="d">%s</td>', $date;
   $html .= "</tr>\n";
+
   return $html;
 }
 
@@ -205,7 +206,7 @@ sub printh1 {
 	$i ? htmlenc($parts[$i]) : '<em>(root)</em>';
   }
 
-  return sprintf "<h1>Index of test %s</h1>\n", $s;
+  return sprintf "<h1>Index of %s</h1>\n", $s;
 }
 
 sub print404 {
@@ -355,6 +356,7 @@ EOT
   $html .= "</table>\n";
 
   $html .= "</body></html>\n";
+
   return $html;
 }
 
@@ -373,7 +375,7 @@ sub printdirectory {
   foreach my $entry (@$entries) {
     my ($basename) = $entry =~ m!([^/]+)$!; # /
 
-    $html .= print "  <tr>";
+    $html .= "  <tr>";
 
     my @s = stat $entry;
     my $link = (-l $entry)
@@ -402,22 +404,28 @@ sub printdirectory {
 
   $html .= "</table>\n";
   $html .= "</body></html>\n";
+
+  return $html;
 }
 
 # ====== Main Routine ======
 
 my $phys = $ENV{'DOCUMENT_ROOT'};
 my $virt = '/'.$ENV{'PATH_INFO'};
+my $printout;
 
 # add caching function
 my $sanitized_virt = $virt;
 $sanitized_virt =~ s/\//_/g;
 my $htmlcachefile = $htmlcachedir."/".$sanitized_virt.".cache";
-#print "cachefile: ".$htmlcachefile."\n";
+
+# if the .cache file exists, print it out and exit
 if ( -e $htmlcachefile ) {
     open(CACHE, "<$htmlcachefile") or die ("Unable to open $htmlcachefile due to $!\n");
-    my $html = <CACHE>;
-    print $html;
+    read CACHE, $printout, -s CACHE;
+    close CACHE;
+
+    print $printout;
     exit 0;
 }
 
@@ -443,7 +451,7 @@ if (opendir(D, $phys)) {                  # read all the files from the director
   closedir D;
 }
 else {
-  print print404($virt);
+  $printout .= print404($virt);
   exit 0;
 }
 
@@ -471,15 +479,22 @@ if ($virt =~ m!/targets/$! && $ENV{'QUERY_STRING'} =~ m!^json\b!) {
     }
     close F;
 
-    print "Content-Type: application/json\n\n";
-    print JSON::encode_json(\@list);
+    $printout .= "Content-Type: application/json\n\n";
+    $printout .= JSON::encode_json(\@list);
   }
 }
 elsif ($virt =~ m!/targets/[^/]+/[^/]+/?$! || # special handling for 'targets' - LEDE image file directories
        $virt =~ m!/(backfire|kamikaze)/[^/]+/[^/]+/?$! ||
        $virt =~ m!/(attitude_adjustment|barrier_breaker|chaos_calmer)/[^/]+/[^/]+/[^/]+/?$!) {
-  print printtargets(\@entries, $phys, $virt)
+  $printout .= printtargets(\@entries, $phys, $virt)
 }
 else {                                        # otherwise use standard directory display format
-  print printdirectory(\@entries, $phys, $virt)
+  $printout .= printdirectory(\@entries, $phys, $virt)
 }
+
+# put the generated html into a cache file
+open(WCACHE, ">$htmlcachefile") or die ("Unable to write cache file $htmlcachefile due to $!\n");
+print WCACHE $printout;
+close WCACHE;
+
+print $printout;
