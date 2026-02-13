@@ -9,11 +9,21 @@
 
 use strict;
 use warnings;
+use Compress::Zlib;
 
 use Fcntl ':mode';
 use JSON;
 
-my $htmlcachedir = "/var/tmp/cgi-cache";
+my $htmlcachedir;
+my $cache_compress = 1;
+my $debug = 0;
+
+if ( !$debug ) {
+    $htmlcachedir = "/var/www/cgi-cache";
+}
+else {
+    $htmlcachedir = "/var/tmp/cgi-cache-test";
+}
 
 my $stylecss = <<EOT;
   <style type="text/css">
@@ -206,7 +216,12 @@ sub printh1 {
 	$i ? htmlenc($parts[$i]) : '<em>(root)</em>';
   }
 
-  return sprintf "<h1>Index of %s</h1>\n", $s;
+  if ( !$debug ) {
+     return sprintf "<h1>Index of %s</h1>\n", $s;
+  }
+  else {
+      return sprintf "<h1>Index of test %s</h1>\n", $s;
+  }
 }
 
 sub print404 {
@@ -425,7 +440,12 @@ if ( -e $htmlcachefile ) {
     read CACHE, $printout, -s CACHE;
     close CACHE;
 
-    print $printout;
+    if ( $cache_compress ) {
+        print uncompress($printout);
+    }
+    else {
+	print $printout;
+    }
     exit 0;
 }
 
@@ -494,7 +514,12 @@ else {                                        # otherwise use standard directory
 
 # put the generated html into a cache file
 open(WCACHE, ">$htmlcachefile") or die ("Unable to write cache file $htmlcachefile due to $!\n");
-print WCACHE $printout;
+if ( $cache_compress ) {
+    print WCACHE compress($printout, 9);
+}
+else {
+    print WCACHE $printout;
+}
 close WCACHE;
 
 print $printout;
