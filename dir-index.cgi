@@ -428,25 +428,46 @@ sub printdirectory {
 my $phys = $ENV{'DOCUMENT_ROOT'};
 my $virt = '/'.$ENV{'PATH_INFO'};
 my $printout;
+my $statcache;
+my $dirstat;
 
 # add caching function
 my $sanitized_virt = $virt;
 $sanitized_virt =~ s/\//_/g;
 my $htmlcachefile = $htmlcachedir."/".$sanitized_virt.".cache";
+my $fstatcache = $htmlcachedir."/".$sanitized_virt.".stat";
 
-# if the .cache file exists, print it out and exit
-if ( -e $htmlcachefile ) {
-    open(CACHE, "<$htmlcachefile") or die ("Unable to open $htmlcachefile due to $!\n");
-    read CACHE, $printout, -s CACHE;
-    close CACHE;
+# this is mtime, which gets updated if the rsync run
+# pulls additional files i.e. packages
+my @tmp = stat($phys);
+$dirstat = $tmp[9];
 
-    if ( $cache_compress ) {
-        print uncompress($printout);
+if ( -e $fstatcache ) {
+    open(STAT, "<$fstatcache") or die ("Unable to open $fstatcache due to $!\n");
+    read STAT, $statcache, -s STAT;
+    close STAT;
+
+
+    if ( $statcache eq $dirstat ) {
+        # if the .cache file exists, print it out and exit
+        if ( -e $htmlcachefile ) {
+	    open(CACHE, "<$htmlcachefile") or die ("Unable to open $htmlcachefile due to $!\n");
+            read CACHE, $printout, -s CACHE;
+            close CACHE;
+
+            if ( $cache_compress ) {
+                print uncompress($printout);
+            }
+            else {
+	        print $printout;
+            }
+	    print "stat: $dirstat";
+            exit 0;
+	}
     }
     else {
-	print $printout;
+	# updating cache
     }
-    exit 0;
 }
 
 my @hidden = (                            # hide these files - never consider them
@@ -514,12 +535,15 @@ else {                                        # otherwise use standard directory
 
 # put the generated html into a cache file
 open(WCACHE, ">$htmlcachefile") or die ("Unable to write cache file $htmlcachefile due to $!\n");
+open(SCACHE, ">$fstatcache") or die ("Unable to write stat cache file $fstatcache due to $!\n");
 if ( $cache_compress ) {
     print WCACHE compress($printout, 9);
 }
 else {
     print WCACHE $printout;
 }
+print SCACHE $dirstat;
 close WCACHE;
+close SCACHE;
 
 print $printout;
